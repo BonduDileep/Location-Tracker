@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "LiveTrack Driver",
+    "slug": "livetrack-driver",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "livetrack",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "LiveTrack shares your ride location with viewers."
+        }
+      ],
+      "expo-asset",
+      "expo-status-bar"
+    ]
+  }
+}

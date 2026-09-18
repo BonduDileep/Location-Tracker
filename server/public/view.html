@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LiveTrack — Live View</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+    #map { height: 100%; }
+    #hud {
+      position: absolute; top: 10px; left: 10px; z-index: 1000;
+      background: rgba(255,255,255,.95); border-radius: 10px;
+      padding: 10px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      font-size: 14px; line-height: 1.5; min-width: 190px;
+    }
+    #hud .title { font-weight: 700; font-size: 15px; }
+    #status { display: inline-block; padding: 1px 8px; border-radius: 8px;
+      background: #e8f5e9; color: #2e7d32; font-weight: 600; font-size: 12px; }
+    #status.ended { background: #ffebee; color: #c62828; }
+    #status.stale { background: #fff8e1; color: #f57f17; }
+    #error {
+      position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%);
+      z-index: 1000; background: #fff; padding: 20px 30px; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.3); display: none; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="hud">
+    <div class="title">LiveTrack</div>
+    <div id="label">—</div>
+    <div>Status: <span id="status">connecting…</span></div>
+    <div>Speed: <span id="speed">—</span></div>
+    <div>Updated: <span id="updated">—</span></div>
+  </div>
+  <div id="error"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const tripId = location.pathname.split("/").pop();
+
+    const map = L.map("map").setView([17.457, 78.398], 13); // Bowenpally area default
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+
+    const marker = L.circleMarker([0, 0], {
+      radius: 9, color: "#fff", weight: 2, fillColor: "#1976d2", fillOpacity: 1,
+    });
+    const trail = L.polyline([], { color: "#1976d2", weight: 4, opacity: 0.7 });
+    let hasFix = false;
+
+    const $ = (id) => document.getElementById(id);
+    const setStatus = (text, cls) => {
+      const el = $("status");
+      el.textContent = text;
+      el.className = cls || "";
+    };
+
+    function applyPoints(points) {
+      if (!points || !points.length) return;
+      const last = points[points.length - 1];
+      const latlngs = trail.getLatLngs();
+      for (const p of points) latlngs.push([p.lat, p.lng]);
+      trail.setLatLngs(latlngs).addTo(map);
+      marker.setLatLng([last.lat, last.lng]).addTo(map);
+      $("speed").textContent =
+        last.speed != null ? Math.round(last.speed * 3.6) + " km/h" : "—";
+      $("updated").textContent = new Date(last.ts).toLocaleTimeString();
+      if (!hasFix) { map.setView([last.lat, last.lng], 16); hasFix = true; }
+      else map.panTo([last.lat, last.lng], { animate: true });
+    }
+
+    function showError(msg) {
+      const el = $("error");
+      el.innerHTML = msg;
+      el.style.display = "block";
+    }
+
+    const socket = io();
+    socket.on("connect", () => socket.emit("watch", { tripId }));
+
+    socket.on("snapshot", (s) => {
+      $("label").textContent = s.label || s.tripId;
+      setStatus(s.status === "ended" ? "ride ended" : "live",
+                s.status === "ended" ? "ended" : "");
+      applyPoints(s.trail);
+    });
+    socket.on("location", applyPoints);
+    socket.on("trip:ended", () => setStatus("ride ended", "ended"));
+    socket.on("error:trip", () => {
+      setStatus("not found", "ended");
+      showError("<b>Trip not found</b><br/>Check the link and try again.");
+    });
+    socket.on("disconnect", () => setStatus("reconnecting…", "stale"));
+
+    // Stale-data rule from the doc: GPS stale > 60s -> "Location outdated"
+    let lastTs = 0;
+    const _apply = applyPoints;
+    applyPoints = (pts) => { lastTs = Date.now(); _apply(pts); };
+    setInterval(() => {
+      if (!hasFix || $("status").className === "ended") return;
+      if (Date.now() - lastTs > 60000) setStatus("location outdated", "stale");
+      else setStatus("live", "");
+    }, 5000);
+  </script>
+</body>
+</html>

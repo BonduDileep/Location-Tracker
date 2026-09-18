@@ -1,0 +1,25 @@
+{
+  "name": "livetrack-driver",
+  "version": "0.1.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android"
+  },
+  "dependencies": {
+    "expo": "^57.0.0",
+    "expo-asset": "~57.0.17",
+    "expo-constants": "~57.0.18",
+    "expo-file-system": "~57.0.7",
+    "expo-location": "~57.0.18",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "babel-preset-expo": "^57.0.12"
+  },
+  "private": true
+}
